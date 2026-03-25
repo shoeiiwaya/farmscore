@@ -357,6 +357,23 @@ function renderResults(d) {
       `).join('')}
     </table>
 
+    ${d.production_evidence ? `
+    <div class="score-card" style="border-left:3px solid #f59e0b">
+      <h3><span>📊 栽培実績（${d.production_evidence.prefecture}）</span></h3>
+      <p style="font-size:11px;color:#374151;margin-bottom:4px"><b>${d.production_evidence.prefecture_info?.specialty || ''}</b></p>
+      ${d.production_evidence.prefecture_info?.top_crops?.length ? `
+        <p style="font-size:11px;color:#6b7280">主要作物: ${d.production_evidence.prefecture_info.top_crops.slice(0,6).join(', ')}</p>
+      ` : ''}
+      ${d.production_evidence.crops_grown?.length ? d.production_evidence.crops_grown.map(c => `
+        <p style="font-size:11px">🌾 ${c.name_ja}: 作付 ${Number(c.area_ha||0).toLocaleString()}ha / 収量 ${c.yield_kg_per_10a||'?'}kg/10a / 生産 ${Number(c.production_t||0).toLocaleString()}t</p>
+      `).join('') : ''}
+      ${d.production_evidence.target_crop_evidence ? `
+        <p style="font-size:11px;color:#15803d;margin-top:4px">✅ ${d.production_evidence.target_crop_evidence.note}</p>
+      ` : ''}
+      <p style="font-size:9px;color:#9ca3af;margin-top:4px">出典: ${d.production_evidence.evidence_source}</p>
+    </div>
+    ` : ''}
+
     ${d.data_sources ? `
     <div style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:10px;color:#6b7280">
       <b style="color:#15803d">データソース:</b><br>

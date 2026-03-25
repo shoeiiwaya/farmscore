@@ -12,6 +12,7 @@ from app.services.water_analyzer import analyze_water
 from app.services.sunlight_analyzer import analyze_sunlight
 from app.services.crop_recommender import recommend_crops
 from app.services.jma_amedas import get_realtime_weather
+from app.services.estat_client import get_crop_evidence
 
 
 def _grade(score: float) -> str:
@@ -91,6 +92,12 @@ async def calculate_farm_score(
     except Exception:
         weather = None
 
+    # 7b. Crop production evidence from e-Stat (農水省統計)
+    try:
+        evidence = await get_crop_evidence(lat, lon, crop)
+    except Exception:
+        evidence = None
+
     # 8. Crop recommendations
     crops = recommend_crops(
         soil_group=soil["soil_group"],
@@ -157,6 +164,10 @@ async def calculate_farm_score(
     # Add real-time weather if available
     if weather:
         result["realtime_weather"] = weather
+
+    # Add crop production evidence
+    if evidence:
+        result["production_evidence"] = evidence
 
     return result
 
