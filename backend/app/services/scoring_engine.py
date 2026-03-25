@@ -11,6 +11,7 @@ from app.services.climate_analyzer import analyze_climate
 from app.services.water_analyzer import analyze_water
 from app.services.sunlight_analyzer import analyze_sunlight
 from app.services.crop_recommender import recommend_crops
+from app.services.jma_amedas import get_realtime_weather
 
 
 def _grade(score: float) -> str:
@@ -84,7 +85,13 @@ async def calculate_farm_score(
     )
     overall = round(overall, 1)
 
-    # 7. Crop recommendations
+    # 7. Real-time weather from JMA AMeDAS
+    try:
+        weather = await get_realtime_weather(lat, lon)
+    except Exception:
+        weather = None
+
+    # 8. Crop recommendations
     crops = recommend_crops(
         soil_group=soil["soil_group"],
         temp=climate["annual_temp_avg"],
@@ -94,7 +101,7 @@ async def calculate_farm_score(
         top_n=5,
     )
 
-    return {
+    result = {
         "lat": lat,
         "lon": lon,
         "overall_score": overall,
@@ -137,8 +144,21 @@ async def calculate_farm_score(
         "elevation": elev_detail,
         "elevation_score": float(elev_score),
         "crop_recommendations": crops,
-        "disclaimer": "本スコアは参考情報です。農業判断の結果について一切の責任を負いません。データソース: 農研機構eSoil, 気象庁, 国土数値情報, GSI DEM",
+        "data_sources": {
+            "soil": "農研機構 日本土壌インベントリー（eSoil）土壌分類に基づく推定",
+            "elevation": "国土地理院 標高API（実測値）",
+            "climate": "気象庁 メッシュ平年値（地域別統計）",
+            "water": "国土数値情報 河川データ",
+            "realtime_weather": "気象庁 AMeDAS（リアルタイム実測）" if weather else None,
+        },
+        "disclaimer": "本スコアは公開データに基づく参考情報です。実際の農業判断には現地調査を推奨します。",
     }
+
+    # Add real-time weather if available
+    if weather:
+        result["realtime_weather"] = weather
+
+    return result
 
 
 def _classify_landform(elevation: float) -> str:

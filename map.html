@@ -122,80 +122,7 @@
     <div class="control-group">
       <label>対象作物</label>
       <select id="crop">
-        <option value="">指定なし</option>
-        <optgroup label="穀物">
-          <option value="rice">水稲（コメ）</option>
-          <option value="wheat">小麦</option>
-          <option value="corn">トウモロコシ</option>
-          <option value="buckwheat">ソバ</option>
-        </optgroup>
-        <optgroup label="果菜類">
-          <option value="tomato">トマト</option>
-          <option value="strawberry">イチゴ</option>
-          <option value="cucumber">キュウリ</option>
-          <option value="eggplant">ナス</option>
-          <option value="green_pepper">ピーマン</option>
-          <option value="pumpkin">カボチャ</option>
-          <option value="zucchini">ズッキーニ</option>
-          <option value="okra">オクラ</option>
-          <option value="melon">メロン</option>
-          <option value="watermelon">スイカ</option>
-        </optgroup>
-        <optgroup label="葉菜類">
-          <option value="cabbage">キャベツ</option>
-          <option value="lettuce">レタス</option>
-          <option value="spinach">ホウレンソウ</option>
-          <option value="chinese_cabbage">ハクサイ</option>
-          <option value="broccoli">ブロッコリー</option>
-          <option value="green_onion">ネギ</option>
-          <option value="asparagus">アスパラガス</option>
-          <option value="shiso">シソ（大葉）</option>
-        </optgroup>
-        <optgroup label="根菜類">
-          <option value="potato">ジャガイモ</option>
-          <option value="sweet_potato">サツマイモ</option>
-          <option value="daikon">ダイコン</option>
-          <option value="carrot">ニンジン</option>
-          <option value="onion">タマネギ</option>
-          <option value="taro">サトイモ</option>
-          <option value="burdock">ゴボウ</option>
-          <option value="garlic">ニンニク</option>
-          <option value="ginger">ショウガ</option>
-          <option value="wasabi">ワサビ</option>
-          <option value="myoga">ミョウガ</option>
-        </optgroup>
-        <optgroup label="果樹">
-          <option value="apple">リンゴ</option>
-          <option value="grape">ブドウ</option>
-          <option value="peach">モモ</option>
-          <option value="pear">ナシ</option>
-          <option value="mandarin">ミカン</option>
-          <option value="persimmon">カキ</option>
-          <option value="cherry">サクランボ</option>
-          <option value="plum">ウメ</option>
-          <option value="kiwi">キウイ</option>
-          <option value="fig">イチジク</option>
-          <option value="blueberry">ブルーベリー</option>
-          <option value="mango">マンゴー</option>
-        </optgroup>
-        <optgroup label="豆類">
-          <option value="soybean">大豆</option>
-          <option value="edamame">枝豆</option>
-        </optgroup>
-        <optgroup label="工芸作物">
-          <option value="tea">茶</option>
-          <option value="sugarcane">サトウキビ</option>
-          <option value="hop">ホップ</option>
-        </optgroup>
-        <optgroup label="花卉">
-          <option value="chrysanthemum">キク</option>
-          <option value="rose">バラ</option>
-          <option value="carnation">カーネーション</option>
-        </optgroup>
-        <optgroup label="飼料作物">
-          <option value="timothy">チモシー（牧草）</option>
-          <option value="feed_corn">デントコーン</option>
-        </optgroup>
+        <option value="">読み込み中...</option>
       </select>
     </div>
     <button id="btn-score" onclick="doScore()">🔍 診断する</button>
@@ -232,6 +159,43 @@
 const API = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
   : 'https://farmscore.onrender.com';
+
+// Load crops dynamically from API
+(async function loadCrops() {
+  const sel = document.getElementById('crop');
+  try {
+    const res = await fetch(API + '/v1/demo/crops');
+    const data = await res.json();
+    // Group by category
+    const groups = {};
+    for (const [key, info] of Object.entries(data)) {
+      const cat = info.category || '未分類';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push({key, name_ja: info.name_ja});
+    }
+    sel.innerHTML = '<option value="">指定なし（全作物比較）</option>';
+    const catOrder = ['穀物','果菜類','葉菜類','根菜類','果樹','豆類','工芸作物','花卉','ハーブ','きのこ類','飼料作物'];
+    const cats = Object.keys(groups).sort((a,b) => {
+      const ai = catOrder.indexOf(a), bi = catOrder.indexOf(b);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+    for (const cat of cats) {
+      const og = document.createElement('optgroup');
+      og.label = `${cat}（${groups[cat].length}）`;
+      groups[cat].sort((a,b) => a.name_ja.localeCompare(b.name_ja, 'ja'));
+      for (const crop of groups[cat]) {
+        const opt = document.createElement('option');
+        opt.value = crop.key;
+        opt.textContent = crop.name_ja;
+        og.appendChild(opt);
+      }
+      sel.appendChild(og);
+    }
+  } catch (e) {
+    sel.innerHTML = '<option value="">指定なし</option>';
+    console.warn('Crop list load failed:', e);
+  }
+})();
 
 // Map setup
 const map = L.map('map').setView([35.4437, 139.638], 9);
@@ -366,6 +330,22 @@ function renderResults(d) {
       <p>${d.elevation.elevation_m}m / ${d.elevation.landform} / 傾斜${d.elevation.slope_deg}° ${d.elevation.aspect}</p>
     </div>
 
+    ${d.realtime_weather ? `
+    <div class="score-card" style="border-left:3px solid #0ea5e9">
+      <h3><span>📡 リアルタイム気象</span><span style="font-size:11px;color:#6b7280">${d.realtime_weather.station_name}（${d.realtime_weather.station_distance_km}km）</span></h3>
+      <p>
+        ${d.realtime_weather.temp_current !== null ? `気温 <b>${d.realtime_weather.temp_current}°C</b>` : ''}
+        ${d.realtime_weather.humidity !== null ? ` / 湿度 <b>${d.realtime_weather.humidity}%</b>` : ''}
+        ${d.realtime_weather.precipitation_1h !== null ? ` / 降水 <b>${d.realtime_weather.precipitation_1h}mm/h</b>` : ''}
+      </p>
+      <p style="font-size:11px;color:#6b7280">
+        ${d.realtime_weather.wind_speed !== null ? `風速 ${d.realtime_weather.wind_speed}m/s` : ''}
+        ${d.realtime_weather.sunshine_1h !== null ? ` / 日照 ${d.realtime_weather.sunshine_1h}h` : ''}
+        — データ: ${d.realtime_weather.source}
+      </p>
+    </div>
+    ` : ''}
+
     <table class="crop-table">
       <tr><th colspan="3">🌾 おすすめ作物</th></tr>
       ${d.crop_recommendations.map(c => `
@@ -376,6 +356,13 @@ function renderResults(d) {
         </tr>
       `).join('')}
     </table>
+
+    ${d.data_sources ? `
+    <div style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:10px;color:#6b7280">
+      <b style="color:#15803d">データソース:</b><br>
+      ${Object.entries(d.data_sources).filter(([,v])=>v).map(([k,v])=>`• ${v}`).join('<br>')}
+    </div>
+    ` : ''}
 
     <p class="disclaimer">${d.disclaimer}</p>
   `;
