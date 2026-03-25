@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --fs-green: #22c55e;
+  --fs-green-dark: #16a34a;
+  --fs-brown: #92400e;
+  --fs-sky: #0ea5e9;
+  --fs-amber: #f59e0b;
+  --fs-bg: #fafaf5;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--fs-bg);
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+}
+
+.grade-S { background: #22c55e; }
+.grade-A { background: #3b82f6; }
+.grade-B { background: #f59e0b; }
+.grade-C { background: #f97316; }
+.grade-D { background: #ef4444; }

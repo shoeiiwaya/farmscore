@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["cd backend && pip install fastapi uvicorn httpx python-dotenv pydantic-settings"]
+
+[start]
+cmd = "cd backend && python3 run_local.py"
