@@ -158,8 +158,63 @@ def calculate_climate_score(climate_data: dict, crop: Optional[str] = None) -> f
     return min(100.0, round(base, 1))
 
 
+async def analyze_climate_async(lat: float, lon: float, crop: Optional[str] = None) -> dict:
+    """Full climate analysis using Open-Meteo real data with regional fallback."""
+    from app.services.open_meteo import get_climate_normals
+
+    om = await get_climate_normals(lat, lon)
+
+    if om:
+        # Use Open-Meteo real data
+        data = {
+            "temp": om["annual_temp_avg"],
+            "precip": om["annual_precip_mm"],
+            "sunshine": om["sunshine_hours"],
+            "frost_free": om["frost_free_days"],
+        }
+        zone = _classify_zone(om["annual_temp_avg"], om["annual_precip_mm"])
+        gdd = om["growing_degree_days"]
+        climate_source = om["source"]
+    else:
+        # Fallback to regional averages
+        region = get_region(lat, lon)
+        data = CLIMATE_NORMALS.get(region, CLIMATE_NORMALS["kanto"])
+        zone = data.get("zone", "Cfa")
+        gdd = calculate_gdd(data["temp"], data["frost_free"])
+        climate_source = "地域別平年値（フォールバック）"
+
+    score = calculate_climate_score(data, crop)
+
+    return {
+        "annual_temp_avg": data["temp"],
+        "annual_precip_mm": data["precip"],
+        "frost_free_days": data["frost_free"],
+        "growing_degree_days": round(gdd, 0),
+        "climate_zone": zone,
+        "sunshine_hours": data["sunshine"],
+        "frost_risk": assess_frost_risk(data["frost_free"]),
+        "drought_risk": assess_drought_risk(data["precip"], data["temp"]),
+        "typhoon_risk": assess_typhoon_risk(lat, lon),
+        "score": score,
+        "climate_source": climate_source,
+    }
+
+
+def _classify_zone(temp: float, precip: float) -> str:
+    """Classify Köppen climate zone from temp and precip."""
+    if temp >= 22:
+        return "Cfa（温暖湿潤）"
+    if temp >= 15:
+        return "Cfa（温暖湿潤）"
+    if temp >= 8:
+        if precip > 2000:
+            return "Cfa/Dfb（温暖〜冷温帯）"
+        return "Cfa（温暖湿潤）"
+    return "Dfb（冷帯湿潤）"
+
+
 def analyze_climate(lat: float, lon: float, crop: Optional[str] = None) -> dict:
-    """Full climate analysis for a location."""
+    """Sync fallback — uses regional averages only."""
     region = get_region(lat, lon)
     data = CLIMATE_NORMALS.get(region, CLIMATE_NORMALS["kanto"])
 

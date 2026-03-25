@@ -7,7 +7,7 @@ Combines all analyzers into a unified farmland suitability score.
 from typing import Optional
 
 from app.services.soil_analyzer import analyze_soil
-from app.services.climate_analyzer import analyze_climate
+from app.services.climate_analyzer import analyze_climate, analyze_climate_async
 from app.services.water_analyzer import analyze_water
 from app.services.sunlight_analyzer import analyze_sunlight
 from app.services.crop_recommender import recommend_crops
@@ -41,8 +41,11 @@ async def calculate_farm_score(
     soil = await analyze_soil(lat, lon, crop)
     elevation = soil["elevation"]
 
-    # 2. Climate analysis
-    climate = analyze_climate(lat, lon, crop)
+    # 2. Climate analysis (Open-Meteo real data with fallback)
+    try:
+        climate = await analyze_climate_async(lat, lon, crop)
+    except Exception:
+        climate = analyze_climate(lat, lon, crop)
 
     # 3. Water analysis
     water = analyze_water(lat, lon, elevation, climate["annual_precip_mm"])
@@ -125,6 +128,7 @@ async def calculate_farm_score(
         "climate": {
             "annual_temp_avg": climate["annual_temp_avg"],
             "annual_precip_mm": climate["annual_precip_mm"],
+            "sunshine_hours": climate["sunshine_hours"],
             "frost_free_days": climate["frost_free_days"],
             "growing_degree_days": climate["growing_degree_days"],
             "climate_zone": climate["climate_zone"],
@@ -154,7 +158,7 @@ async def calculate_farm_score(
         "data_sources": {
             "soil": "農研機構 日本土壌インベントリー（eSoil）土壌分類に基づく推定",
             "elevation": "国土地理院 標高API（実測値）",
-            "climate": "気象庁 メッシュ平年値（地域別統計）",
+            "climate": climate.get("climate_source", "Open-Meteo JMA model（5km解像度実データ）"),
             "water": "国土数値情報 河川データ",
             "realtime_weather": "気象庁 AMeDAS（リアルタイム実測）" if weather else None,
         },
