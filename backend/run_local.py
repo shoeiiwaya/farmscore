@@ -11,6 +11,10 @@ import uvicorn
 from app.services.scoring_engine import calculate_farm_score
 from app.services.crop_recommender import CROP_DATABASE
 from app.services.global_data import GLOBAL_CROPS_EXTRA
+from app.services.fertilizer_advisor import (
+    FERTILIZER_DATABASE, CROP_FERTILIZATION_STANDARDS, get_fertilizer_recommendation,
+)
+from app.services.japan_adaptation import analyze_japan_adaptation, get_crop_adaptation_detail
 
 app = FastAPI(
     title="FarmScore API (Local)",
@@ -82,6 +86,62 @@ def sample_regions():
         {"name": "静岡県牧之原", "lat": 34.7421, "lon": 138.2210, "description": "茶の一大産地"},
         {"name": "宮崎県都城", "lat": 31.7275, "lon": 131.0621, "description": "畜産＋園芸"},
     ]
+
+
+@app.get("/v1/demo/fertilizers")
+def list_fertilizers():
+    """肥料・土壌改良材データベース（25種以上）"""
+    return {
+        key: {
+            "name_ja": info["name_ja"],
+            "category": info["category"],
+            "npk": info["npk"],
+            "speed": info["speed"],
+            "price_range": info["price_range"],
+        }
+        for key, info in FERTILIZER_DATABASE.items()
+    }
+
+
+@app.get("/v1/demo/fertilizer")
+def fertilizer_advice(
+    soil_type: str = Query("褐色森林土", description="土壌タイプ"),
+    soil_ph: str = Query("5.5-6.5", description="pH範囲"),
+    drainage: str = Query("moderate", description="排水性 (poor/moderate/good/excessive)"),
+    organic_matter: str = Query("medium", description="有機物 (very_low/low/medium/high)"),
+    crop: Optional[str] = Query(None, description="対象作物"),
+):
+    """肥料・土壌改良アドバイス"""
+    return get_fertilizer_recommendation(soil_type, soil_ph, drainage, organic_matter, crop)
+
+
+@app.get("/v1/demo/fertilizer/standards")
+def fertilizer_standards():
+    """作物別施肥基準（10aあたり標準施肥量）"""
+    return {
+        key: {
+            "name_ja": std["name_ja"],
+            "base_npk": std["base"],
+            "topdress": std["topdress"],
+            "notes": std["notes"],
+        }
+        for key, std in CROP_FERTILIZATION_STANDARDS.items()
+    }
+
+
+@app.get("/v1/demo/adaptation")
+def japan_adaptation():
+    """グローバル作物の日本適応分析 — どの海外作物が日本で栽培可能か"""
+    return analyze_japan_adaptation()
+
+
+@app.get("/v1/demo/adaptation/{crop_key}")
+def japan_adaptation_detail(crop_key: str):
+    """特定グローバル作物の日本適応詳細"""
+    result = get_crop_adaptation_detail(crop_key)
+    if result is None:
+        return {"error": f"作物 '{crop_key}' は見つかりません", "available": list(GLOBAL_CROPS_EXTRA.keys())}
+    return result
 
 
 @app.get("/v1/admin/attribution")

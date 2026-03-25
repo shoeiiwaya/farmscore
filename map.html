@@ -403,6 +403,42 @@ function renderResults(d) {
     </div>
     ` : ''}
 
+    ${d.fertilizer ? `
+    <div class="score-card" style="border-left:3px solid #16a34a;background:#f0fdf4">
+      <h3><span>🧪 肥料・土壌改良アドバイス</span></h3>
+
+      ${d.fertilizer.crop_specific ? `
+        <div style="margin:8px 0;padding:8px;background:white;border-radius:6px;border:1px solid #dcfce7">
+          <b style="font-size:12px;color:#15803d">${d.fertilizer.crop_specific.crop_name}の施肥基準（10aあたり）</b>
+          <p style="font-size:11px;margin:4px 0">基肥: N${d.fertilizer.crop_specific.base_npk.N}-P${d.fertilizer.crop_specific.base_npk.P}-K${d.fertilizer.crop_specific.base_npk.K} ${d.fertilizer.crop_specific.base_npk.unit}</p>
+          <p style="font-size:11px;margin:2px 0">追肥: N${d.fertilizer.crop_specific.topdress.N}-P${d.fertilizer.crop_specific.topdress.P}-K${d.fertilizer.crop_specific.topdress.K}（${d.fertilizer.crop_specific.topdress.timing}）</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:4px">${d.fertilizer.crop_specific.notes}</p>
+          ${d.fertilizer.crop_specific.recommended_products?.length ? `
+            <p style="font-size:11px;margin-top:4px"><b>推奨肥料:</b> ${d.fertilizer.crop_specific.recommended_products.map(p => p.name_ja).join('、')}</p>
+          ` : ''}
+        </div>
+      ` : ''}
+
+      ${d.fertilizer.soil_amendments?.length ? `
+        <div style="margin:6px 0">
+          <b style="font-size:11px;color:#92400e">⚠️ 土壌改良が必要:</b>
+          ${d.fertilizer.soil_amendments.map(a => `
+            <p style="font-size:11px;margin:2px 0;padding-left:8px">• <b>${a.name_ja}</b>（${a.dosage}）— ${a.reason}</p>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${d.fertilizer.application_guide?.length ? `
+        <div style="margin-top:8px">
+          <b style="font-size:11px;color:#374151">📅 年間施肥スケジュール:</b>
+          ${d.fertilizer.application_guide.map(g => `
+            <p style="font-size:10px;margin:2px 0;padding-left:8px"><b>${g.period}</b> ${g.action}<br><span style="color:#6b7280;padding-left:16px">${g.detail}</span></p>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+    ` : ''}
+
     ${d.data_sources ? `
     <div style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:8px;font-size:10px;color:#6b7280">
       <b style="color:#15803d">データソース:</b><br>

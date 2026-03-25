@@ -11,6 +11,7 @@ from app.services.climate_analyzer import analyze_climate, analyze_climate_async
 from app.services.water_analyzer import analyze_water
 from app.services.sunlight_analyzer import analyze_sunlight
 from app.services.crop_recommender import recommend_crops
+from app.services.fertilizer_advisor import get_fertilizer_recommendation
 from app.services.jma_amedas import get_realtime_weather
 from app.services.estat_client import get_crop_evidence
 from app.services.global_data import (
@@ -203,6 +204,19 @@ async def calculate_farm_score(
         },
         "disclaimer": "本スコアは公開データに基づく参考情報です。実際の農業判断には現地調査を推奨します。",
     }
+
+    # 12. Fertilizer recommendation
+    try:
+        fertilizer = get_fertilizer_recommendation(
+            soil_type=soil["soil_type"],
+            soil_ph=soil["ph_range"],
+            drainage=soil["drainage"],
+            organic_matter=soil["organic_matter"],
+            crop=crop,
+        )
+        result["fertilizer"] = fertilizer
+    except Exception:
+        pass
 
     if weather:
         result["realtime_weather"] = weather
