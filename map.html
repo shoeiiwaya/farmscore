@@ -138,6 +138,15 @@
       <button class="sample-btn" onclick="goTo(34.7421,138.221)">静岡 牧之原</button>
       <button class="sample-btn" onclick="goTo(31.7275,131.0621)">宮崎 都城</button>
     </div>
+    <div class="samples">
+      <span style="font-size:11px;color:#9ca3af;align-self:center">🌍 海外:</span>
+      <button class="sample-btn" onclick="goTo(38.30,-122.29)">🇺🇸 Napa Valley</button>
+      <button class="sample-btn" onclick="goTo(18.79,98.98)">🇹🇭 Chiang Mai</button>
+      <button class="sample-btn" onclick="goTo(-23.55,-46.63)">🇧🇷 São Paulo</button>
+      <button class="sample-btn" onclick="goTo(28.61,77.23)">🇮🇳 New Delhi</button>
+      <button class="sample-btn" onclick="goTo(0.31,32.58)">🇺🇬 Kampala</button>
+      <button class="sample-btn" onclick="goTo(-37.81,144.96)">🇦🇺 Melbourne</button>
+    </div>
 
     <div id="instructions">
       <div class="icon">🗺️</div>
@@ -356,6 +365,26 @@ function renderResults(d) {
         </tr>
       `).join('')}
     </table>
+
+    ${d.country ? `<div style="font-size:11px;color:#6b7280;text-align:center;margin-bottom:8px">📍 ${d.country.name}（${d.country.code}）</div>` : ''}
+
+    ${d.fao_global ? `
+    <div class="score-card" style="border-left:3px solid #8b5cf6">
+      <h3><span>🌍 世界の生産状況</span></h3>
+      <table style="width:100%;font-size:11px;border-collapse:collapse">
+        ${d.fao_global.global_top_producers.map(p => `
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:2px 4px;color:#9ca3af">#${p.rank}</td>
+            <td style="padding:2px 4px;font-weight:600">${p.country}</td>
+            <td style="padding:2px 4px;text-align:right">${(p.production_t/1000000).toFixed(1)}M t</td>
+            <td style="padding:2px 4px;text-align:right;color:#6b7280">${(p.area_ha/1000).toFixed(0)}K ha</td>
+          </tr>
+        `).join('')}
+      </table>
+      ${d.fao_global.country_rank ? `<p style="font-size:11px;color:#8b5cf6;margin-top:4px">この国は世界第${d.fao_global.country_rank}位の生産国です</p>` : ''}
+      <p style="font-size:9px;color:#9ca3af;margin-top:4px">出典: ${d.fao_global.source}</p>
+    </div>
+    ` : ''}
 
     ${d.production_evidence ? `
     <div class="score-card" style="border-left:3px solid #f59e0b">

@@ -10,6 +10,7 @@ import uvicorn
 
 from app.services.scoring_engine import calculate_farm_score
 from app.services.crop_recommender import CROP_DATABASE
+from app.services.global_data import GLOBAL_CROPS_EXTRA
 
 app = FastAPI(
     title="FarmScore API (Local)",
@@ -37,8 +38,8 @@ def root():
 
 @app.get("/v1/demo/score")
 async def demo_score(
-    lat: float = Query(35.4437, ge=20.0, le=46.0, description="緯度"),
-    lon: float = Query(139.6380, ge=122.0, le=154.0, description="経度"),
+    lat: float = Query(35.4437, ge=-90.0, le=90.0, description="緯度（世界対応）"),
+    lon: float = Query(139.6380, ge=-180.0, le=180.0, description="経度（世界対応）"),
     crop: Optional[str] = Query(None, description="対象作物 (rice, tomato, strawberry 等)"),
 ):
     """農地適性スコア — 認証不要"""
@@ -57,11 +58,15 @@ async def batch_score(locations: list[dict]):
 
 @app.get("/v1/demo/crops")
 def list_crops():
-    """利用可能な作物一覧"""
-    return {
+    """利用可能な作物一覧（日本137種 + グローバル作物）"""
+    result = {
         key: {"name_ja": info["name_ja"], "category": info["category"], "season": info["season"]}
         for key, info in CROP_DATABASE.items()
     }
+    for key, info in GLOBAL_CROPS_EXTRA.items():
+        if key not in result:
+            result[key] = {"name_ja": info["name_ja"], "category": info["category"], "season": info["season"]}
+    return result
 
 
 @app.get("/v1/demo/regions")

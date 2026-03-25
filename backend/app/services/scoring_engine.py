@@ -13,6 +13,10 @@ from app.services.sunlight_analyzer import analyze_sunlight
 from app.services.crop_recommender import recommend_crops
 from app.services.jma_amedas import get_realtime_weather
 from app.services.estat_client import get_crop_evidence
+from app.services.global_data import (
+    detect_country, get_global_elevation, estimate_global_soil,
+    get_fao_context, GLOBAL_SOIL_TYPES, GLOBAL_CROPS_EXTRA,
+)
 
 
 def _grade(score: float) -> str:
@@ -34,28 +38,58 @@ async def calculate_farm_score(
 ) -> dict:
     """
     Calculate comprehensive farmland suitability score.
-
-    Returns a complete analysis with sub-scores and recommendations.
+    Works globally — uses Japan-specific APIs for Japan, global APIs elsewhere.
     """
-    # 1. Soil analysis (includes elevation lookup)
-    soil = await analyze_soil(lat, lon, crop)
-    elevation = soil["elevation"]
+    # Detect country
+    country = detect_country(lat, lon)
+    is_japan = country["code"] == "JPN"
 
-    # 2. Climate analysis (Open-Meteo real data with fallback)
+    # 1. Elevation (GSI for Japan, Open-Meteo for global)
+    if is_japan:
+        soil = await analyze_soil(lat, lon, crop)
+        elevation = soil["elevation"]
+    else:
+        elevation = await get_global_elevation(lat, lon)
+        soil = None  # Will be estimated from climate
+
+    # 2. Climate analysis (Open-Meteo — works globally)
     try:
         climate = await analyze_climate_async(lat, lon, crop)
     except Exception:
         climate = analyze_climate(lat, lon, crop)
 
-    # 3. Water analysis
+    # 3. Soil (Japan: eSoil system, Global: climate-based estimation)
+    if not is_japan or soil is None:
+        global_soil = estimate_global_soil(
+            lat, lon, elevation,
+            climate["annual_temp_avg"],
+            climate["annual_precip_mm"],
+        )
+        if global_soil:
+            soil = {
+                "soil_type": global_soil["name"],
+                "soil_group": global_soil["group"],
+                "ph_range": global_soil["ph"],
+                "drainage": global_soil["drainage"],
+                "organic_matter": global_soil["organic"],
+                "suitability_notes": f"気候・標高から推定（{country['name']}）",
+                "score": float(global_soil["base_score"]),
+                "elevation": elevation,
+            }
+        else:
+            # Fallback: use Japanese analyzer
+            soil = await analyze_soil(lat, lon, crop)
+            elevation = soil["elevation"]
+
+    # 4. Water analysis
     water = analyze_water(lat, lon, elevation, climate["annual_precip_mm"])
 
-    # 4. Sunlight analysis
+    # 5. Sunlight analysis
     sunlight = analyze_sunlight(lat, lon, elevation, climate["sunshine_hours"])
 
-    # 5. Elevation score
+    # 6. Elevation score
     if elevation < 3:
-        elev_score = 30  # flood risk
+        elev_score = 30
     elif elevation < 300:
         elev_score = 80 + min(20, (elevation - 3) * 0.1)
     elif elevation < 600:
@@ -72,14 +106,8 @@ async def calculate_farm_score(
         "landform": _classify_landform(elevation),
     }
 
-    # 6. Weighted overall score
-    weights = {
-        "soil": 0.25,
-        "climate": 0.25,
-        "water": 0.20,
-        "sunlight": 0.15,
-        "elevation": 0.15,
-    }
+    # 7. Weighted overall score
+    weights = {"soil": 0.25, "climate": 0.25, "water": 0.20, "sunlight": 0.15, "elevation": 0.15}
     overall = (
         soil["score"] * weights["soil"]
         + climate["score"] * weights["climate"]
@@ -89,19 +117,28 @@ async def calculate_farm_score(
     )
     overall = round(overall, 1)
 
-    # 7. Real-time weather from JMA AMeDAS
-    try:
-        weather = await get_realtime_weather(lat, lon)
-    except Exception:
-        weather = None
+    # 8. Real-time weather (JMA AMeDAS for Japan only)
+    weather = None
+    if is_japan:
+        try:
+            weather = await get_realtime_weather(lat, lon)
+        except Exception:
+            pass
 
-    # 7b. Crop production evidence from e-Stat (農水省統計)
-    try:
-        evidence = await get_crop_evidence(lat, lon, crop)
-    except Exception:
-        evidence = None
+    # 9. Production evidence
+    evidence = None
+    if is_japan:
+        try:
+            evidence = await get_crop_evidence(lat, lon, crop)
+        except Exception:
+            pass
 
-    # 8. Crop recommendations
+    # 10. FAO global context
+    fao_context = None
+    if crop:
+        fao_context = get_fao_context(crop, country["code"])
+
+    # 11. Crop recommendations
     crops = recommend_crops(
         soil_group=soil["soil_group"],
         temp=climate["annual_temp_avg"],
@@ -114,6 +151,7 @@ async def calculate_farm_score(
     result = {
         "lat": lat,
         "lon": lon,
+        "country": country,
         "overall_score": overall,
         "grade": _grade(overall),
         "soil": {
@@ -156,22 +194,22 @@ async def calculate_farm_score(
         "elevation_score": float(elev_score),
         "crop_recommendations": crops,
         "data_sources": {
-            "soil": "農研機構 日本土壌インベントリー（eSoil）土壌分類に基づく推定",
-            "elevation": "国土地理院 標高API（実測値）",
-            "climate": climate.get("climate_source", "Open-Meteo JMA model（5km解像度実データ）"),
+            "soil": "農研機構 eSoil 土壌分類" if is_japan else f"気候・標高ベース推定（{country['name']}）",
+            "elevation": "国土地理院 DEM" if is_japan else "Open-Meteo / Copernicus DEM",
+            "climate": climate.get("climate_source", "Open-Meteo（5km解像度）"),
             "water": "国土数値情報 河川データ",
-            "realtime_weather": "気象庁 AMeDAS（リアルタイム実測）" if weather else None,
+            "realtime_weather": "気象庁 AMeDAS" if weather else None,
+            "crop_stats": "農水省 e-Stat" if evidence else ("FAO FAOSTAT 2022" if fao_context else None),
         },
         "disclaimer": "本スコアは公開データに基づく参考情報です。実際の農業判断には現地調査を推奨します。",
     }
 
-    # Add real-time weather if available
     if weather:
         result["realtime_weather"] = weather
-
-    # Add crop production evidence
     if evidence:
         result["production_evidence"] = evidence
+    if fao_context:
+        result["fao_global"] = fao_context
 
     return result
 
