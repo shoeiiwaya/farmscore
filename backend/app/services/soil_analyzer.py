@@ -86,9 +86,24 @@ def calculate_soil_score(soil_type: str, crop: Optional[str] = None) -> float:
     props = get_soil_properties(soil_type)
     base = props["base_score"]
 
-    if crop and crop in CROP_SOIL_AFFINITY:
-        affinity = CROP_SOIL_AFFINITY[crop].get(props["group"], 0.5)
-        return min(100.0, base * affinity * 1.3)
+    if crop:
+        # Check explicit affinity table first
+        if crop in CROP_SOIL_AFFINITY:
+            affinity = CROP_SOIL_AFFINITY[crop].get(props["group"], 0.5)
+            return min(100.0, base * affinity * 1.3)
+        # Fall back to CROP_DATABASE soil_pref
+        try:
+            from app.services.crop_recommender import CROP_DATABASE
+            if crop in CROP_DATABASE:
+                prefs = CROP_DATABASE[crop].get("soil_pref", [])
+                if props["group"] in prefs:
+                    idx = prefs.index(props["group"])
+                    affinity = 0.95 - idx * 0.05
+                else:
+                    affinity = 0.5
+                return min(100.0, base * affinity * 1.3)
+        except ImportError:
+            pass
 
     return float(base)
 

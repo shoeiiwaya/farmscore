@@ -123,16 +123,79 @@
       <label>対象作物</label>
       <select id="crop">
         <option value="">指定なし</option>
-        <option value="rice">水稲（コメ）</option>
-        <option value="tomato">トマト</option>
-        <option value="strawberry">イチゴ</option>
-        <option value="cabbage">キャベツ</option>
-        <option value="sweet_potato">サツマイモ</option>
-        <option value="grape">ブドウ</option>
-        <option value="tea">茶</option>
-        <option value="soybean">大豆</option>
-        <option value="wheat">小麦</option>
-        <option value="onion">タマネギ</option>
+        <optgroup label="穀物">
+          <option value="rice">水稲（コメ）</option>
+          <option value="wheat">小麦</option>
+          <option value="corn">トウモロコシ</option>
+          <option value="buckwheat">ソバ</option>
+        </optgroup>
+        <optgroup label="果菜類">
+          <option value="tomato">トマト</option>
+          <option value="strawberry">イチゴ</option>
+          <option value="cucumber">キュウリ</option>
+          <option value="eggplant">ナス</option>
+          <option value="green_pepper">ピーマン</option>
+          <option value="pumpkin">カボチャ</option>
+          <option value="zucchini">ズッキーニ</option>
+          <option value="okra">オクラ</option>
+          <option value="melon">メロン</option>
+          <option value="watermelon">スイカ</option>
+        </optgroup>
+        <optgroup label="葉菜類">
+          <option value="cabbage">キャベツ</option>
+          <option value="lettuce">レタス</option>
+          <option value="spinach">ホウレンソウ</option>
+          <option value="chinese_cabbage">ハクサイ</option>
+          <option value="broccoli">ブロッコリー</option>
+          <option value="green_onion">ネギ</option>
+          <option value="asparagus">アスパラガス</option>
+          <option value="shiso">シソ（大葉）</option>
+        </optgroup>
+        <optgroup label="根菜類">
+          <option value="potato">ジャガイモ</option>
+          <option value="sweet_potato">サツマイモ</option>
+          <option value="daikon">ダイコン</option>
+          <option value="carrot">ニンジン</option>
+          <option value="onion">タマネギ</option>
+          <option value="taro">サトイモ</option>
+          <option value="burdock">ゴボウ</option>
+          <option value="garlic">ニンニク</option>
+          <option value="ginger">ショウガ</option>
+          <option value="wasabi">ワサビ</option>
+          <option value="myoga">ミョウガ</option>
+        </optgroup>
+        <optgroup label="果樹">
+          <option value="apple">リンゴ</option>
+          <option value="grape">ブドウ</option>
+          <option value="peach">モモ</option>
+          <option value="pear">ナシ</option>
+          <option value="mandarin">ミカン</option>
+          <option value="persimmon">カキ</option>
+          <option value="cherry">サクランボ</option>
+          <option value="plum">ウメ</option>
+          <option value="kiwi">キウイ</option>
+          <option value="fig">イチジク</option>
+          <option value="blueberry">ブルーベリー</option>
+          <option value="mango">マンゴー</option>
+        </optgroup>
+        <optgroup label="豆類">
+          <option value="soybean">大豆</option>
+          <option value="edamame">枝豆</option>
+        </optgroup>
+        <optgroup label="工芸作物">
+          <option value="tea">茶</option>
+          <option value="sugarcane">サトウキビ</option>
+          <option value="hop">ホップ</option>
+        </optgroup>
+        <optgroup label="花卉">
+          <option value="chrysanthemum">キク</option>
+          <option value="rose">バラ</option>
+          <option value="carnation">カーネーション</option>
+        </optgroup>
+        <optgroup label="飼料作物">
+          <option value="timothy">チモシー（牧草）</option>
+          <option value="feed_corn">デントコーン</option>
+        </optgroup>
       </select>
     </div>
     <button id="btn-score" onclick="doScore()">🔍 診断する</button>
@@ -165,7 +228,10 @@
 </div>
 
 <script>
-const API = 'http://localhost:8000';
+// Auto-detect: use deployed API if not running locally
+const API = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : 'https://farmscore.onrender.com';
 
 // Map setup
 const map = L.map('map').setView([35.4437, 139.638], 9);

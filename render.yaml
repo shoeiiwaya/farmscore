@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: farmscore
+    runtime: python
+    buildCommand: cd backend && pip install fastapi uvicorn httpx python-dotenv pydantic-settings
+    startCommand: cd backend && python3 run_local.py
+    envVars:
+      - key: PORT
+        value: 10000
+    plan: free
+    autoDeploy: true
